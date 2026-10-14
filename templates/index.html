@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Sentinel | ESET detection intelligence</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2353dfc2'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='700' font-size='19' text-anchor='middle' fill='%230c2724'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-view="overview">
+<aside>
+  <a class="brand" href="#overview"><span class="logo">S</span>sentinel<span class="brand-dot">.</span></a>
+  <div class="workspace">SECURITY WORKSPACE</div>
+  <nav aria-label="Views">
+    <button class="nav active" data-view="overview"><span class="ico">◫</span>Overview</button>
+    <button class="nav" data-view="detections"><span class="ico">▤</span>Detections <b id="navCount"></b></button>
+    <button class="nav" data-view="geography"><span class="ico">◎</span>IP &amp; geography</button>
+    <button class="nav" data-view="users"><span class="ico">♙</span>Endpoints &amp; users</button>
+    <button class="nav" data-view="database"><span class="ico">⛁</span>Database <b id="dbBadge" hidden></b></button>
+  </nav>
+  <div class="aside-bottom">
+    <div class="eset">ESET <span>PROTECT</span></div>
+    <p>Detection export analysis</p>
+    <p class="kbd-hint"><kbd>/</kbd> search · <kbd>Esc</kbd> close</p>
+    <button id="theme" type="button">☼ Switch to light mode</button>
+  </div>
+</aside>
+
+<main>
+  <header>
+    <span class="crumb">Workspace <span>/</span> <b id="viewCrumb">Overview</b></span>
+    <div class="header-right">
+      <span class="local">◈ Local analysis · no cloud services</span>
+      <button id="print" class="subtle" type="button" title="Print or save the current view as PDF">⎙ Report</button>
+      <button class="primary" id="upload" type="button">↑ Import CSV</button>
+      <input hidden id="file" type="file" accept=".csv,.tsv,.txt,text/csv">
+    </div>
+  </header>
+
+  <section class="intro">
+    <div>
+      <div class="eyebrow">DETECTION INTELLIGENCE</div>
+      <h1 id="heading">Security overview</h1>
+      <p id="subtitle">A clear picture of what’s happening across your environment.</p>
+    </div>
+    <span id="dataset" class="dataset">DEMO DATA</span>
+  </section>
+
+  <div class="source-banner">
+    <span id="sourceText">You’re exploring synthetic sample detections. Import an ESET CSV — or drop it anywhere on this page — to analyze your environment.</span>
+    <span class="banner-actions"><button id="sample" type="button">Download sample CSV ↓</button><button id="manageDb" type="button" hidden>Manage database →</button><button id="loadDemo" type="button" hidden>Back to demo data</button></span>
+  </div>
+
+  <section class="filters" aria-label="Filters">
+    <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search detection, computer, IP, file, hash…" aria-label="Search detections"></label>
+    <select id="threatFilter" aria-label="Filter by detection"><option value="">All detections</option></select>
+    <select id="severityFilter" aria-label="Filter by severity"><option value="">All severities</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option><option>Unknown</option></select>
+    <select id="userFilter" aria-label="Filter by user"><option value="">All users</option></select>
+    <select id="computerFilter" aria-label="Filter by computer"><option value="">All computers</option></select>
+    <input id="ipFilter" placeholder="IP address" aria-label="Filter by IP address" autocomplete="off" spellcheck="false">
+    <select id="countryFilter" aria-label="Filter by country"><option value="">All countries</option></select>
+    <select id="actionFilter" aria-label="Filter by action"><option value="">All actions</option></select>
+    <select id="statusFilter" aria-label="Filter by review status"><option value="">Any review status</option><option value="new">New</option><option value="investigating">Investigating</option><option value="closed">Closed</option><option value="false_positive">False positive</option></select>
+    <select id="period" aria-label="Time range">
+      <option value="all">All time</option><option value="1">Last 24 hours in export</option><option value="7">Last 7 days in export</option>
+      <option value="30">Last 30 days in export</option><option value="90">Last 90 days in export</option><option value="custom">Custom range…</option>
+    </select>
+    <span id="customRange" class="custom-range" hidden><input id="dateFrom" type="date" aria-label="From date"><span>→</span><input id="dateTo" type="date" aria-label="To date"></span>
+    <button id="reset" type="button" title="Clear all filters" aria-label="Clear all filters">↺</button>
+  </section>
+  <div id="chips" class="chips" aria-label="Active filters"></div>
+  <div id="message" role="status" hidden><span id="messageText"></span><button id="messageClose" type="button" aria-label="Dismiss">×</button></div>
+
+  <section class="metrics" id="metrics"></section>
+
+  <section class="middle">
+    <article class="panel" data-panel="chart" data-views="overview">
+      <div class="panel-head"><div><h2>Detection activity</h2><p>Daily occurrences by severity · click a bar to zoom to that day</p></div><span class="legend" id="chartLegend"></span></div>
+      <div id="chart"></div>
+    </article>
+    <article class="panel" data-panel="threats" data-views="overview">
+      <div class="panel-head"><div><h2>Threat breakdown</h2><p>Most frequent detections · click to filter</p></div><span class="muted">TOP 6</span></div>
+      <div id="threats"></div>
+    </article>
+  </section>
+
+  <section class="middle even">
+    <article class="panel" data-panel="severity" data-views="overview">
+      <div class="panel-head"><div><h2>Severity &amp; outcome</h2><p>How serious detections were, and what ESET did about them</p></div></div>
+      <div id="severity"></div>
+    </article>
+    <article class="panel" data-panel="heatmap" data-views="overview">
+      <div class="panel-head"><div><h2>When detections happen</h2><p>Occurrences by weekday and hour (your local time)</p></div></div>
+      <div id="heatmap"></div>
+    </article>
+  </section>
+
+  <section class="middle geo-row">
+    <article class="panel map-panel" data-panel="map" data-views="overview geography">
+      <div class="panel-head"><div><h2>Detection geography</h2><p>Country from CSV or local GeoDB · click a country to filter</p></div><button id="locate" class="subtle" type="button">Locate with GeoDB</button></div>
+      <div id="map"><svg id="world" viewBox="0 0 900 370" role="img" aria-label="World map of detection locations"></svg><div class="map-tag">◎ <span id="mappedCount">0</span> located occurrences</div></div>
+      <div class="map-footer"><span><i class="cyan-dot"></i>Approximate country-level location</span><span id="unlocated"></span></div>
+    </article>
+    <article class="panel" data-panel="countries" data-views="overview geography">
+      <div class="panel-head"><div><h2>Top countries</h2><p>Excluding internal addresses</p></div><span class="muted">TOP 8</span></div>
+      <div id="countries"></div>
+    </article>
+  </section>
+
+  <section class="middle even">
+    <article class="panel" data-panel="users" data-views="overview users">
+      <div class="panel-head"><div><h2>User leaderboard</h2><p>Accounts ranked by occurrences</p></div><span class="muted">TOP 8</span></div>
+      <div id="users"></div>
+    </article>
+    <article class="panel" data-panel="ips" data-views="overview geography">
+      <div class="panel-head"><div><h2>IP activity</h2><p>Most active addresses in the export</p></div><span class="muted">TOP 8</span></div>
+      <div id="ips"></div>
+    </article>
+    <article class="panel" data-panel="computers" data-views="users">
+      <div class="panel-head"><div><h2>Computers</h2><p>Endpoints ranked by occurrences</p></div><span class="muted">TOP 8</span></div>
+      <div id="computers"></div>
+    </article>
+  </section>
+
+  <section class="middle even">
+    <article class="panel" data-panel="objects" data-views="users">
+      <div class="panel-head"><div><h2>Processes &amp; object types</h2><p>What was running, and what kind of object was detected · click to search</p></div></div>
+      <div id="objects"></div>
+    </article>
+  </section>
+
+  <section id="tableSection" class="panel table-panel" data-views="overview detections">
+    <div class="panel-head">
+      <div><h2>Detection log <span id="resultCount" class="count"></span></h2><p>Click a row for details and investigation links</p></div>
+      <div class="table-tools">
+        <span id="bulkTools" class="bulk" hidden><select id="bulkStatus" aria-label="Review status to apply"><option value="">Mark filtered rows as…</option><option value="new">New</option><option value="investigating">Investigating</option><option value="closed">Closed</option><option value="false_positive">False positive</option></select><button id="bulkApply" class="subtle" type="button" disabled>Apply</button></span>
+        <button id="export" class="subtle" type="button">↓ Export filtered CSV</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th><button data-sort="t">Detected at</button></th><th><button data-sort="threat">Detection</button></th><th><button data-sort="severity">Severity</button></th>
+          <th><button data-sort="computer">Computer / user</button></th><th><button data-sort="ip">IP address</button></th><th><button data-sort="country">Country</button></th><th><button data-sort="action">Action</button></th><th><button data-sort="status">Review</button></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="pageInfo"></span>
+      <div><label class="page-size">Rows <select id="pageSize" aria-label="Rows per page"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></label><button id="prev" type="button">Previous</button><button id="next" type="button">Next</button></div>
+    </div>
+  </section>
+
+  <section id="dbSection" data-views="database">
+    <div class="db-grid" id="dbStats"></div>
+    <section class="middle even">
+      <article class="panel">
+        <div class="panel-head"><div><h2>Imports</h2><p>Every CSV added to the local database. Deleting an import removes rows no other import contains.</p></div></div>
+        <div id="dbImports"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><div><h2>Maintenance</h2><p id="dbPath">Local SQLite database</p></div></div>
+        <div class="db-actions">
+          <div class="db-action"><div><b>Back up</b><p>Download a copy of the database file. Keep it somewhere protected — it contains user names, IPs and file paths.</p></div><button id="dbBackup" type="button">↓ Download backup</button></div>
+          <div class="db-action"><div><b>Re-run GeoDB</b><p id="geoStatus">Look up every stored public IP in the local GeoDB again, for example after updating the .mmdb file.</p></div><button id="dbRelocate" type="button">Locate all IPs</button></div>
+          <div class="db-action"><div><b>Purge old detections</b><p>Delete detections that happened more than this many days ago. Review status and notes go with them.</p></div><span class="purge"><input id="purgeDays" type="number" min="1" value="180" aria-label="Days to keep"><span>days</span><button id="dbPurge" type="button" class="danger">Purge</button></span></div>
+          <div class="db-action"><div><b>Delete everything</b><p>Remove all detections, imports, statuses and notes. This cannot be undone.</p></div><button id="dbWipe" type="button" class="danger">Delete all data</button></div>
+        </div>
+      </article>
+    </section>
+  </section>
+
+  <footer><span>sentinel. <span class="muted">ESET export intelligence</span></span><span id="footerNote">Imported detections are stored in a local SQLite database on this server. Nothing is sent to external services.</span></footer>
+</main>
+
+<dialog id="importDialog" aria-labelledby="importTitle">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <h2 id="importTitle">Map your CSV columns</h2>
+  <p>We matched columns by name. Check each field against the sample value from your first row — missing fields are treated as unknown.</p>
+  <div id="importInfo" class="import-info"></div>
+  <div id="mapping"></div>
+  <p class="check" id="dbNote" hidden>Rows are added to your local database. Detections already stored are recognised and skipped; their review status and notes are kept.</p>
+  <label class="check" id="appendWrap" hidden><input type="checkbox" id="appendImport"> Add these rows to the data already imported</label>
+  <label class="check"><input type="checkbox" id="rememberMap" checked> Remember this mapping for exports with the same columns</label>
+  <div class="dialog-actions"><span id="importError" class="error"></span><button id="applyImport" class="primary" type="button">Import detections</button></div>
+</dialog>
+
+<dialog id="detailDialog" aria-labelledby="detailTitle">
+  <div class="detail-top">
+    <h2 id="detailTitle">Detection details</h2>
+    <span class="detail-nav"><span id="detailPos"></span><button id="detailPrev" type="button" aria-label="Previous detection">‹</button><button id="detailNext" type="button" aria-label="Next detection">›</button>
+    <form method="dialog"><button class="close" aria-label="Close">×</button></form></span>
+  </div>
+  <div id="detail"></div>
+</dialog>
+
+<div id="dropZone" hidden><div>Drop your ESET CSV export to analyze it locally</div></div>
+
+<script src="{{ url_for('static', filename='core.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
